@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+  	<script src="/socket.io/socket.io.js"></script>
+	<script src="http://www.haimi.com/static/js/jquery-1.10.2.min.js"></script>
+    <h1><%= title %></h1>
+    <p>Welcome to <%= title %></p>
+    <% if (user) { %>
+    当前登录用户：<%= user %>
+    <% } else {%>
+    <form action="/login" method="post">
+	    <input type="text" id="user" name="user">
+	    <input type="submit" value="登录" id="login">
+    </form>
+	<% } %>
+    <script>
+    $(function(){
+    	var socket = io.connect('http://localhost:3000');
+    	var $user = $('#user');
+    	var $login = $('#login');
+
+    	if(<%= user %>){
+    		
+    	}
+    })	
+    </script>
+  </body>
+</html>
