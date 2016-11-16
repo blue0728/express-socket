@@ -55,7 +55,13 @@ app.use(function(err, req, res, next) {
 	res.render('error');
 });
 
+var onlineUsers = [];
+var userSocket = {};
+
 io.on('connection', function(socket) {
+
+	io.sockets.emit('nums', socket.handshake.session.userdata);
+
 	socket.on('login', function(userdata) {
 		socket.handshake.session.userdata = userdata;
 		console.log(socket.handshake.session)

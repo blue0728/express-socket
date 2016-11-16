@@ -19,13 +19,13 @@
 	<% } %>
     <script>
     $(function(){
-    	var socket = io.connect('http://localhost:3000');
+    	var socket = io.connect();
     	var $user = $('#user');
     	var $login = $('#login');
 
-    	if(<%= user %>){
-    		
-    	}
+    	socket.on('nums', function (users) {
+		    console.log(users)
+		});
     })	
     </script>
   </body>
