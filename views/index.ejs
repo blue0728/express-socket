@@ -10,23 +10,78 @@
     <h1><%= title %></h1>
     <p>Welcome to <%= title %></p>
     <% if (user) { %>
-    当前登录用户：<%= user %>
+    当前登录用户：<%= user.name %>
+    <div id="sys"></div>
+    <div>当前在线用户：</div>
+    <div id="online"></div>
+    <div id="sendBox" style="display: none;">
+        <span id="sendto"></span>
+        <input type="text" id="msg">
+        <input type="button" id="submit" value="发送消息">
+    </div>
     <% } else {%>
     <form action="/login" method="post">
+        <input type="hidden" id="uid" name="uid" value="<%= timemap%>">
 	    <input type="text" id="user" name="user">
-	    <input type="submit" value="登录" id="login">
+	    <input type="submit" value="登录">
     </form>
 	<% } %>
     <script>
+    var username, uid;
+    <% if (user) { %>
+    username = '<%= user.name %>';
+    uid = <%= user.uid%>
+    <% } %>
     $(function(){
-    	var socket = io.connect();
-    	var $user = $('#user');
-    	var $login = $('#login');
+    	var $msg = $('#msg');
+    	var $submit = $('#submit');
+        var $online = $('#online');
+        var $sendBox = $('#sendBox');
+        var $sendto = $('#sendto');
+        var $sys = $('#sys');
+        var sendToId = '';
 
-    	socket.on('nums', function (users) {
-		    console.log(users)
-		});
-    })	
+        if(username){
+            var socket = io.connect();
+                socket.emit('login', {
+                    name: username,
+                    uid: uid
+                })
+
+                socket.on('to', function(data){
+                    console.log(data)
+                })
+
+                $submit.click(function(){
+                    if(!sendToId){
+                        alert('请选择发送人')
+                        return
+                    }
+                    if($msg.val() == ''){
+                        alert('消息不能为空')
+                        return
+                    }
+                    socket.emit('msg', uid, sendToId, $msg.val())
+                })
+
+                socket.on('online', function (users) {
+                    $online.empty();
+                    $.each(users, function(index, item){
+                        $online.append('<p><a title="给他发消息" href="javascript:;" data-id="'+ item.uid +'" data-name="'+ item.name +'">'+ item.name +'</a></p>')
+                    })
+                });
+
+                socket.on('sys', function(status, users){
+                    $sys.append('<p style="color:blue;">'+ users.name + status +'</a></p>')
+                })
+
+                $online.on('click', 'a', function(){
+                    $sendto.html('发送给：' + $(this).data('name'));
+                    $sendBox.show();
+                    sendToId = $(this).data('id');
+                })
+        }
+    })
     </script>
   </body>
 </html>

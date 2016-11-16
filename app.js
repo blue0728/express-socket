@@ -59,12 +59,18 @@ var onlineUsers = [];
 var userSocket = {};
 
 io.on('connection', function(socket) {
-
-	io.sockets.emit('nums', socket.handshake.session.userdata);
-
-	socket.on('login', function(userdata) {
-		socket.handshake.session.userdata = userdata;
-		console.log(socket.handshake.session)
+	socket.on('login', function(user) {
+		if (!userSocket[socket.id]) {
+			userSocket[socket.id] = socket;
+			var onlineUser = {
+				name: user.name,
+				uid: user.uid,
+				socketid: socket.id
+			};
+			onlineUsers.push(onlineUser)
+			io.emit('sys', '上线了', onlineUser);
+		}
+		io.sockets.emit('online', onlineUsers);
 	});
 
 	socket.on('logout', function(userdata) {
@@ -72,6 +78,26 @@ io.on('connection', function(socket) {
 			delete socket.handshake.session.userdata;
 		}
 	});
+
+	socket.on('disconnect', function() {
+		if (userSocket.hasOwnProperty(socket.id)) {
+			var onlineUser = onlineUsers.filter((item) => {
+				return item.socketid != socket.id;
+			});
+			var offlineUser = onlineUsers.filter((item) => {
+				return item.socketid == socket.id;
+			});
+			onlineUsers = onlineUser;
+			io.sockets.emit('online', onlineUsers);
+			io.emit('sys', '离线了', offlineUser[0]);
+		}
+	});
+
+	socket.on('msg', function(from, to, msg) {
+		if (to in userSocket) {
+			userSocket[to].emit('to', msg)
+		}
+	})
 });
 
 module.exports = server;
