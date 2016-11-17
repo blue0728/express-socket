@@ -25,7 +25,7 @@ app.set('view engine', 'ejs');
 app.use(session);
 io.use(sharedsession(session));
 // uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
@@ -55,28 +55,28 @@ app.use(function(err, req, res, next) {
 	res.render('error');
 });
 
-var onlineUsers = [];
-var userSocket = {};
+var onlineUsers = []; //在线用户数
+var userSocket = {}; //用户对应socket
+var roomInfo = {} //游戏房间
+var roomId = 0; //房间id 自增
 
 io.on('connection', function(socket) {
-	socket.on('login', function(user) {
+	login(socket);
+	logout(socket);
+	/*socket.on('login', function() {
+		var session = socket.handshake.session.userdata;
 		if (!userSocket[socket.id]) {
 			userSocket[socket.id] = socket;
 			var onlineUser = {
-				name: user.name,
-				uid: user.uid,
+				name: session.name,
+				uid: session.uid,
 				socketid: socket.id
 			};
-			onlineUsers.push(onlineUser)
+			onlineUsers.push(onlineUser);
 			io.emit('sys', '上线了', onlineUser);
 		}
 		io.sockets.emit('online', onlineUsers);
-	});
-
-	socket.on('logout', function(userdata) {
-		if (socket.handshake.session.userdata) {
-			delete socket.handshake.session.userdata;
-		}
+		io.sockets.emit('rooms', roomInfo);
 	});
 
 	socket.on('disconnect', function() {
@@ -88,6 +88,24 @@ io.on('connection', function(socket) {
 				return item.socketid == socket.id;
 			});
 			onlineUsers = onlineUser;
+			delete userSocket[socket.id];
+
+			for (roomId in roomInfo) {
+
+				roomInfo[roomId] = roomInfo[roomId].filter((item) => {
+					return item.uid != offlineUser[0].uid;
+				})
+
+				if (roomInfo[roomId].length == 0) {
+					delete roomInfo[roomId];
+				}
+
+				socket.leave(roomId);
+			}
+
+			io.sockets.emit('rooms', roomInfo);
+			io.to(roomId).emit('room', '退出了', offlineUser[0], roomId);
+
 			io.sockets.emit('online', onlineUsers);
 			io.emit('sys', '离线了', offlineUser[0]);
 		}
@@ -98,6 +116,190 @@ io.on('connection', function(socket) {
 			userSocket[to].emit('to', msg)
 		}
 	})
+
+	socket.on('creat-join-room', function(id) {
+		if (id) {
+			roomId = id;
+		} else {
+			roomId++;
+		}
+		if (!roomInfo[roomId]) {
+			roomInfo[roomId] = [];
+		}
+		var session = socket.handshake.session.userdata;
+		var user = {
+			name: session.name,
+			uid: session.uid
+		}
+		roomInfo[roomId].push(user);
+		socket.join(roomId);
+		io.to(roomId).emit('room', '加入了', user, roomId);
+		io.sockets.emit('rooms', roomInfo);
+	})
+
+	socket.on('leave-room', function(roomId) {
+		var session = socket.handshake.session.userdata;
+		var user = {
+			name: session.name,
+			uid: session.uid
+		}
+
+		roomInfo[roomId] = roomInfo[roomId].filter((item) => {
+			return item.uid != session.uid;
+		})
+
+		if (roomInfo[roomId].length == 0) {
+			delete roomInfo[roomId];
+		}
+		socket.leave(roomId);
+		io.sockets.emit('rooms', roomInfo);
+		io.to(roomId).emit('room', '退出了', user, roomId);
+	})*/
 });
+
+//消息类型
+var types = {
+	ALL: 'ALL', //所有用户
+	ONLINE: 'ONLINE', //上线
+	OFFLINE: 'OFFLINE', //离线
+	INROOM: 'INROOM', //进入房间
+	OUTROOM: 'OUTROOM', //退出房间
+	ROOMMANAGER: 'ROOMMANAGER' //房管
+};
+var roomManagerID = 10000; //房管初始ID
+
+//获取字符串参数
+function getQueryString(name, url) {
+	var reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)', 'i');
+	var r = url.match(reg);
+	if (r != null) {
+		return unescape(r[2]);
+	}
+	return null;
+}
+
+//发送系统消息
+function sendSystemMessage(type = types.ALL, data = null, msg = '') {
+	io.sockets.emit('systemMessage', type, data, msg);
+}
+
+//发送当前在线人数
+function sendOnlineUsers() {
+	io.sockets.emit('onlineUsers', onlineUsers);
+}
+
+//发送当前房间数
+function sendRoomInfo() {
+	io.sockets.emit('roomInfo', roomInfo);
+}
+
+//给房间里的用户发送信息
+function sendRoomMsg(roomId, type, data, msg) {
+	io.to(roomId).emit('roomMsg', type, data, msg);
+}
+
+
+//用户登录
+function login(socket) {
+	socket.on('login', function() {
+		var user = socket.handshake.session.userdata; //从session里面获取当前登录的用户
+		var id = socket.id;
+		if (!userSocket[id]) {
+			userSocket[id] = socket; //给每个用户分配单独的socket连接
+			var onlineUser = {
+				name: user.name,
+				uid: user.uid,
+				socketid: socket.id
+			};
+			onlineUsers.push(onlineUser); //添加到在线用户列表
+			sendSystemMessage(types.ONLINE, onlineUser);
+		}
+		sendOnlineUsers();
+		//sendRoomInfo();  //自动创建好房间会发送一条房间信息
+		creatRoom(socket); //用户登录自动创建
+		//通过房间ID登录
+		var url = socket.request.headers.referer;
+		var roomId = ''
+		var arr = url.split('?');
+		if (arr.length > 1) {
+			roomId = getQueryString('room', arr[1]);
+			console.log(roomId)
+			if (roomInfo[roomId]) {
+				joinRoom(socket, roomId); //直接进入对应房间
+			}
+		}
+	})
+};
+
+//用户离线
+function logout(socket) {
+	socket.on('disconnect', function() {
+		var id = socket.id; //当前离线socket.id 连接
+		if (userSocket.hasOwnProperty(id)) {
+			//把在线用户列表的离线用户删掉
+			var onlineUser = onlineUsers.filter((item) => {
+				return item.socketid != socket.id;
+			});
+			//获取离线用户的基本信息
+			var offlineUser = onlineUsers.filter((item) => {
+				return item.socketid == socket.id;
+			});
+
+			onlineUsers = onlineUser; //更新在线用户列表
+
+			delete userSocket[socket.id]; //删除离线socket.id 连接
+
+			//处理房间
+			for (roomId in roomInfo) {
+				//把离线用户从房间里删除
+				roomInfo[roomId] = roomInfo[roomId].filter((item) => {
+					if (item.uid == offlineUser[0].uid) {
+						sendRoomMsg(roomId, types.OUTROOM, offlineUser[0]); //给房间发送离线用户消息
+					}
+					return item.uid != offlineUser[0].uid;
+				});
+				//删除离线用户的创建的空房间
+				if (roomInfo.hasOwnProperty(id) && !userSocket.hasOwnProperty(roomId) && roomInfo[roomId].length == 1) {
+					delete roomInfo[roomId];
+				}
+				socket.leave(roomId); //退出房间
+			}
+
+			sendRoomInfo(); //更新房间信息
+			sendOnlineUsers(); //更新在线用户
+			sendSystemMessage(types.OFFLINE, offlineUser[0]); //发送系统消息
+		}
+	})
+}
+
+//创建房间
+function creatRoom(socket) {
+	var roomId = socket.id;
+	if (!roomInfo[roomId]) {
+		roomInfo[roomId] = [];
+	}
+	var user = {
+		name: '房管',
+		type: types.ROOMMANAGER,
+		uid: roomManagerID,
+		creatUid: socket.handshake.session.userdata.uid //房间创建者
+	}
+	roomManagerID++;
+	roomInfo[roomId].push(user); //给每个房间增加一个房管用户
+	sendRoomInfo(); //更新房间信息
+}
+
+//进入房间
+function joinRoom(socket, roomId) {
+	var user = socket.handshake.session.userdata;
+	var user = {
+		name: user.name,
+		uid: user.uid
+	}
+	roomInfo[roomId].push(user);
+	sendRoomInfo(); //更新房间信息
+	sendRoomMsg(roomId, types.INROOM, user); //给房间发送进入消息
+}
+
 
 module.exports = server;
