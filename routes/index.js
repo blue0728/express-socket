@@ -7,7 +7,8 @@ router.get('/', function(req, res, next) {
 		title: 'Express',
 		user: req.session.userdata,
 		timemap: new Date().getTime() + "" + Math.floor(Math.random() * 899 + 100),
-		callback: req.query.callback ? '/login?callback=' + req.query.callback : '/login'
+		callback: req.query.callback ? '/login?callback=' + req.query.callback : '/login',
+		room: req.query.room ? req.query.room : ''
 	});
 });
 
