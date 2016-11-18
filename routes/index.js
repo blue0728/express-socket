@@ -1,21 +1,27 @@
 var express = require('express');
 var router = express.Router();
+var uuid = require('node-uuid');
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
 	res.render('index', {
 		title: 'Express',
+		user: req.session.userdata
+	});
+});
+
+router.get('/room/:id', function(req, res, next) {
+	res.render('room', {
+		title: 'room',
 		user: req.session.userdata,
-		timemap: new Date().getTime() + "" + Math.floor(Math.random() * 899 + 100),
-		callback: req.query.callback ? '/login?callback=' + req.query.callback : '/login',
-		room: req.query.room ? req.query.room : ''
+		roomid: req.params.id
 	});
 });
 
 router.post('/login', function(req, res, next) {
 	req.session.userdata = {
 		name: req.body.user,
-		uid: req.body.uid
+		uid: uuid.v1()
 	};
 	var url = req.query.callback ? req.query.callback : '/'
 	res.redirect(url);

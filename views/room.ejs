@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  	</head>
+  	<style>
+  	div p ul li textarea input p{
+  		margin: 0;
+  		padding: 0;
+  		word-break:break-all; 
+　　	word-wrap:break-word
+  	}
+  	.room{
+	  	width: 200px;
+	  	border: 1px solid #ddd;
+	  	padding: 20px;
+  	}
+  	.content{
+  		overflow: hidden;
+  		width: 1000px;
+  		margin-top: 20px;
+  	}
+	.draw{
+		width: 500px;
+		height: 500px;
+		border:1px solid #ddd;
+		float: left;
+	}
+  	.msg{
+  		float: left;
+  		width: 300px;
+  		height: 500px;
+  		border:1px solid #ddd;
+  	}
+  	.send{
+  		border-top: 1px solid #ddd;
+  		padding: 5px 20px;
+  	}
+  	.blcak{
+  		color: black;
+  	}
+  	.blue{
+  		color:blue;
+  	}
+  	.red{
+  		color: red;
+  	}
+  	.green{
+  		color: green;
+  	}
+  	#list{
+  		height: 380px;
+  		line-height: 20px;
+  		padding: 10px;
+  		overflow-y: auto; 
+  	}
+  	#text{
+  		height: 30px;
+  		width: 100%;
+  	}
+  	.bar{
+  		padding: 20px 0; 
+  	}
+  	</style>
+  	<body>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/javascripts/jquery-1.10.2.min.js"></script>
+
+	<h1><%= title %></h1>
+	<p>Welcome to <%= title %></p>
+
+	<% if (user) { %>
+	当前登录用户：<%= user.name %>
+	<a href="/logout">退出</a>
+	
+	<div class="content">
+		<div class="draw">
+			<canvas id="can" width="500" height="500"></canvas>
+		</div>
+		<div class="msg">
+			<div id="list">
+				
+			</div>
+			<div class="send">
+				<p><textarea id="text" cols="30" rows="2"></textarea></p>
+				<p><input type="button" id="submit" value="发送消息"></p>
+			</div>
+		</div>
+	</div>
+	<div class="bar">
+		<input type="button" value="我来画" id="medraw">
+		<input type="button" value="我来猜" id="meguess">
+		<div id="tool">
+			<label for="">画笔粗细
+			<select name="" id="">
+				<option value="1">1号</option>
+				<option value="5">5号</option>
+				<option value="10">10号</option>
+				<option value="15">15号</option>
+				<option value="20">20号</option>
+			</select></label>
+			<label>画笔颜色<select id="">
+				<option value="blue" class="blue">██</option>
+				<option value="black" class="black">██</option>
+				<option value="red" class="red">██</option>
+				<option value="green" class="green">██</option>
+			</select></label>
+		</div>
+	</div>
+	<% } else {%>
+	<form action="/login" method="post">
+	    <input type="text" id="user" name="user">
+	    <input type="submit" value="登录">
+	</form>
+	<% } %>
+
+	<% if (user) { %>
+	<script>
+	var username = '<%= user.name %>';
+	var uid = '<%= user.uid%>';
+	var roomid = '<%= roomid%>';
+	var $text = $('#text');
+	var $submit = $('#submit');
+	var $list = $('#list');
+	var $medraw = $('#medraw');
+	var $meguess = $('#meguess');
+	var $tool = $('#tool');
+	$(function(){
+	    if(username){
+	        var socket = io.connect();
+	        	//登陆
+	            socket.emit('login'); 
+
+	            //系统消息
+	            socket.on('systemMessage', function(type, data, msg){
+	            	if(type == 'ONLINE'){
+	            		$list.append('<p class="blue">' + data.name + '上线了' + '</p>')
+	            	}else if(type == 'OFFLINE'){
+	            		$list.append('<p class="red">' + data.name + '离线了' + '</p>')
+	            	}
+	            });
+
+	            //私密我的通知
+	            socket.on('notice', function(msg){
+	            	$list.append('<p class="red">' + msg + '</p>')
+	            })
+
+	            //即时在线的用户
+	            socket.on('onlineUsers', function(data){
+	            	//console.log('在线用户' + JSON.stringify(data))
+	            });
+
+	            //当前在线房间数量
+	            socket.on('roomInfo', function(data){
+	            	//console.log('房间数' + JSON.stringify(data))
+	            });
+
+	            //当前房间的信息
+	            socket.on('roomById', function(data){
+	            	if(data.palyer.length == 2){
+	            		$medraw.hide();
+	            		$meguess.hide();
+	            		return;
+	            	}
+	            	data.palyer.forEach((item) => {
+	            		if(item.type == 'PLAYGUESS'){
+	            			$meguess.hide();
+	            		}else if(item.type == 'PLAYERDRAW'){
+	            			$medraw.hide();
+	            		}
+	            	})
+	            })
+
+	            //房间消息
+	            socket.on('roomMsg', function(roomId, type, data, msg){
+	                if(type == 'INROOM'){
+	                	$list.append('<p class="blue">' + data.name + '进房间了' + '</p>');
+	                }else if(type == 'OUTROOM'){
+	                	$list.append('<p class="red">' + data.name + '离开房间了' + '</p>');
+	                }else if(type == 'TEXTMSG'){
+	                	$list.append('<p class="green">' + data.name + '说：' + msg + '</p>');
+	                }
+	            });
+
+	            //游戏准备状态
+	            socket.on('playStatus', function(roomId, type, user){
+	            	if(type == 'PLAYERDRAW'){
+	            		$list.append('<p class="blue">' + user.name + '选择了画' + '</p>');
+	            	}else if(type == 'PLAYGUESS'){
+	            		$list.append('<p class="blue">' + user.name + '选择了猜' + '</p>');
+	            		$meguess.hide();
+	            	}else if(type == 'START'){
+	            		$list.append('<p class="blue">游戏开始了</p>');
+	            	}
+	            });
+
+	            //离开房间
+	            $('#leaveRoom').click(function(){
+	                socket.emit('leaveRoom', $(this).data('id'))
+	            });
+	           
+	            //发送文本消息
+	            function send(){
+	            	var val = $text.val();
+	            	if(val == ''){
+	            		console.log('请输入消息')
+	            		return;
+	            	}
+	            	socket.send(roomid, 'TEXTMSG', val)
+	            	$text.val('').focus();
+	            };
+	            $text.keydown(function(e){
+	            	if(e.keyCode == 13){
+	            		e.preventDefault();
+	            		send();
+	            	}
+	            })
+	            $submit.click(function(){
+	            	send();
+	            });
+
+	            //我来画
+	            $medraw.click(function(){
+	            	socket.emit('ready', roomid, 'PLAYERDRAW');
+	            })
+	            //我来猜
+	            $meguess.click(function(){
+	            	socket.emit('ready', roomid, 'PLAYGUESS');
+	            })
+
+	        //画图部分
+	        var canvas = document.getElementById('can');
+	        var context = canvas.getContext('2d');    
+	        var isButtonDown = false;
+
+	        //鼠标按下
+	        function _mousedown(e){
+	        	isButtonDown = true;
+                context.beginPath();
+                context.moveTo( e.offsetX,e.offsetY );
+	        }
+
+	        //鼠标移动
+	        function _mousemove(e){
+	        	var pos = { x:e.offsetX, y:e.offsetY };
+                if(this.isButtonDown){
+					setTimeout(function(){
+						context.lineTo(pos.x, pos.y);
+                    	context.stroke();
+					},0);
+                }
+	        }
+
+	        //鼠标停止
+	        function _mouseup(e){
+                this.isButtonDown = false; 
+	        }
+
+           /* for(var k in options){
+                context[k] = options[k]
+            }
+            for(var i in events){
+                canvas.addEventListener(i,events[i]);
+            }*/    
+	    }
+	})
+	</script>
+	<% } %>
+  </body>
+</html>

@@ -3,72 +3,30 @@
   <head>
     <title><%= title %></title>
     <link rel='stylesheet' href='/stylesheets/style.css' />
-  </head>
-  <style>
-  .room{
-  	width: 200px;
-  	border: 1px solid #ddd;
-  	padding: 20px;
-  }
-  </style>
-  <body>
-  	<script src="/socket.io/socket.io.js"></script>
-    <script src="/javascripts/jquery-1.10.2.min.js"></script>
-    <h1><%= title %></h1>
-    <p>Welcome to <%= title %></p>
-    <% if (user) { %>
-    当前登录用户：<%= user.name %>
-    <a href="/logout">退出</a>
-   <input type="button" id="leaveRoom" data-id="<%=room%>" value="退出游戏房间">
-    <% } else {%>
-    <form action="<%= callback%>" method="post">
-        <input type="hidden" id="uid" name="uid" value="<%= timemap%>">
+  	</head>
+  	<style>
+  	.room{
+	  	width: 200px;
+	  	border: 1px solid #ddd;
+	  	padding: 20px;
+  	}
+  	</style>
+  	<body>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/javascripts/jquery-1.10.2.min.js"></script>
+
+	<h1><%= title %></h1>
+	<p>Welcome to <%= title %></p>
+
+	<% if (user) { %>
+	当前登录用户：<%= user.name %>
+	<a href="/logout">退出</a>
+	<a href="/room/<%= user.uid%>">进入游戏房间</a>
+	<% } else {%>
+	<form action="/login" method="post">
 	    <input type="text" id="user" name="user">
 	    <input type="submit" value="登录">
-    </form>
+	</form>
 	<% } %>
-    <script>
-    var username, uid;
-    <% if (user) { %>
-    username = '<%= user.name %>';
-    uid = <%= user.uid%>
-    <% } %>
-    $(function(){
-        var roomId = [];
-
-        if(username){
-            var socket = io.connect();
-                socket.emit('login'); //登陆
-                //系统消息
-                socket.on('systemMessage', function(type, data, msg){
-                	if(type == 'ONLINE'){
-                		console.log(data.name + '上线了')
-                	}else if(type == 'OFFLINE'){
-                		console.log(data.name + '离线了')
-                	}
-                })
-                //即时在线的用户
-                socket.on('onlineUsers', function(data){
-                	console.log('在线用户' + JSON.stringify(data))
-                })
-                //当前房间数量
-                socket.on('roomInfo', function(data){
-                	console.log('房间数' + JSON.stringify(data))
-                })
-                //自己进入的房间消息
-                socket.on('roomMsg', function(roomId, type, data, msg){
-                    if(type == 'INROOM'){
-                        console.log(data.name + '进房间了')
-                    }else if(type == 'OUTROOM'){
-                        console.log(data.name + '离开房间了')
-                    }
-                })
-                //离开房间
-                $('#leaveRoom').click(function(){
-                    socket.emit('leaveRoom', $(this).data('id'))
-                })
-        }
-    })
-    </script>
   </body>
 </html>
