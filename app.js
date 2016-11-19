@@ -18,6 +18,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 var index = require('./routes/index');
+var WordBank = require('./data.js');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -59,6 +60,7 @@ app.use(function(err, req, res, next) {
 var onlineUsers = []; //在线用户数
 var userSocket = {}; //用户对应socket
 var roomInfo = {}; //游戏房间
+var plays = {}; //正在游戏数
 //类型
 var types = {
 	ALL: 'ALL', //所有用户
@@ -86,7 +88,7 @@ var cn = {
 	PLAYGUESS: '猜', //猜
 	WAIT: '等待游戏', //等待中
 	START: '开始游戏' //已经开始
-}
+};
 io.on('connection', function(socket) {
 	//登录
 	socket.on('login', function() {
@@ -153,6 +155,7 @@ io.on('connection', function(socket) {
 						sendRoomById(key); //发送当前房间信息
 						if (item.type == types.PLAYERDRAW || item.type == types.PLAYGUESS) { //正在参与游戏的人退出了，游戏重新开始
 							playReStart(key); //游戏重新开始
+							delete plays[key] //删除这局游戏
 						}
 					}
 					return item.uid != offlineUser[0].uid;
@@ -181,6 +184,7 @@ io.on('connection', function(socket) {
 				if (item.uid == user.uid) {
 					if (item.type == types.PLAYERDRAW || item.type == types.PLAYGUESS) { //正在参与游戏的人退出了，游戏重新开始
 						playReStart(roomId); //游戏重新开始
+						delete plays[roomId]; //删除这局游戏
 					}
 					sendRoomMsg(roomId, types.OUTROOM, user); //给房间发送离线用户消息
 				}
@@ -229,6 +233,18 @@ io.on('connection', function(socket) {
 						if (roomInfo[roomId].palyer.length == 2) {
 							roomInfo[roomId].status = types.START; //房间游戏开始了
 							sendPlayStatus(roomId, types.START, roomInfo[roomId].palyer); //发送游戏状态
+							if (!plays[roomId]) { //创建游戏内容
+								plays[roomId] = {
+									roomid: roomId,
+									question: getRandomWord(),
+									answers: []
+								};
+								roomInfo[roomId].palyer.forEach((item) => {
+									if (item.type == types.PLAYERDRAW) {
+										playStart(item.socketid, plays[roomId]);
+									}
+								})
+							}
 						}
 					} else {
 						sendToUserMessage(socket.id, '你已经选择' + cn[item.type]);
@@ -303,9 +319,19 @@ function playReStart(roomId) {
 	sendRoomById(roomId); //发送当前房间信息
 }
 
+//游戏开始 发给画的人
+function playStart(id, data) {
+	userSocket[id].emit('play', id, data);
+}
+
 //给房间里的用户发送图行坐标
 function sendRoomDrawMsg(roomId, type, from, data, set) {
 	io.to(roomId).emit('roomDraw', type, from, data, set);
+}
+
+//随机获取题目
+function getRandomWord() {
+	return WordBank['WordBank'][Math.floor(Math.random() * WordBank['WordBank'].length)]
 }
 
 module.exports = server;

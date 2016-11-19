@@ -201,16 +201,19 @@
                         $.each(user, function(index,item){
                             if(item.uid == uid){
                                 if(item.type == 'PLAYERDRAW'){
-                                    console.log(1)
                                     addEven();
                                 }else if(item.type == 'PLAYGUESS'){
-                                    console.log(2)
                                     removeEven();
                                 }
                             }
                         })
 	            	}
 	            });
+
+                //游戏信息
+                socket.on('play', function(roomId, play){
+                    console.log(play)
+                })
 
                 //画图
                 socket.on('roomDraw', function(type, from, data, set){
