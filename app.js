@@ -5,7 +5,10 @@ var io = require('socket.io')(server);
 var session = require('express-session')({
 	secret: "my-secret",
 	resave: true,
-	saveUninitialized: true
+	saveUninitialized: true,
+	cookie: {
+		maxAge: 604800000 //cookie7天过期
+	}
 });
 var sharedsession = require('express-socket.io-session');
 var path = require('path');
@@ -198,6 +201,18 @@ io.on('connection', function(socket) {
 		}
 	})
 
+	//接收坐标
+	socket.on('canvansMsg', function(roomId, type, data = {}, set = {}) {
+		var user = socket.handshake.session.userdata;
+		if (roomInfo[roomId]) { //检测房间
+			roomInfo[roomId].palyer.forEach((item) => {
+				if (item.uid == user.uid && item.type == types.PLAYERDRAW) { //检测用户类型
+					sendRoomDrawMsg(roomId, type, user, data, set); //给房间发送坐标
+				}
+			})
+		}
+	})
+
 	//游戏准备
 	socket.on('ready', function(roomId, type) {
 		var user = socket.handshake.session.userdata;
@@ -289,8 +304,8 @@ function playReStart(roomId) {
 }
 
 //给房间里的用户发送图行坐标
-function sendRoomDrawMsg(roomId, from, data) {
-	io.to(roomId).emit('roomDraw', from, data);
+function sendRoomDrawMsg(roomId, type, from, data, set) {
+	io.to(roomId).emit('roomDraw', type, from, data, set);
 }
 
 module.exports = server;

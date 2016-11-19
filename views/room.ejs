@@ -93,26 +93,22 @@
 		<input type="button" value="我来猜" id="meguess">
 		<div id="tool">
 			<label for="">画笔粗细
-			<select name="" id="">
+			<select id="pensize">
 				<option value="1">1号</option>
 				<option value="5">5号</option>
 				<option value="10">10号</option>
 				<option value="15">15号</option>
 				<option value="20">20号</option>
 			</select></label>
-			<label>画笔颜色<select id="">
-				<option value="blue" class="blue">██</option>
-				<option value="black" class="black">██</option>
-				<option value="red" class="red">██</option>
-				<option value="green" class="green">██</option>
+			<label>画笔颜色<select id="pencolor">
+                <option value="black">黑色</option>
+				<option value="blue">蓝色</option>
+				<option value="red">红色</option>
+				<option value="green">绿色</option>
 			</select></label>
+            <input type="button" id="clear" value="重画">
 		</div>
 	</div>
-	<% } else {%>
-	<form action="/login" method="post">
-	    <input type="text" id="user" name="user">
-	    <input type="submit" value="登录">
-	</form>
 	<% } %>
 
 	<% if (user) { %>
@@ -120,12 +116,20 @@
 	var username = '<%= user.name %>';
 	var uid = '<%= user.uid%>';
 	var roomid = '<%= roomid%>';
-	var $text = $('#text');
-	var $submit = $('#submit');
 	var $list = $('#list');
 	var $medraw = $('#medraw');
 	var $meguess = $('#meguess');
 	var $tool = $('#tool');
+    var $submit = $('#submit');
+    var $text = $('#text');
+    var $clear = $('#clear');
+    var $pensize = $('#pensize');
+    var $pencolor = $('#pencolor');
+    //画图部分
+    var canvas = document.getElementById('can');
+    var context = canvas.getContext('2d');
+    var isButtonDown = false;
+
 	$(function(){
 	    if(username){
 	        var socket = io.connect();
@@ -148,21 +152,19 @@
 
 	            //即时在线的用户
 	            socket.on('onlineUsers', function(data){
-	            	console.log('在线用户' + JSON.stringify(data))
+	            	//console.log('在线用户' + JSON.stringify(data))
 	            });
 
 	            //当前在线房间数量
 	            socket.on('roomInfo', function(data){
-	            	console.log('房间数' + JSON.stringify(data))
+	            	//console.log('房间数' + JSON.stringify(data))
 	            });
 
 	            //当前房间的信息
 	            socket.on('roomById', function(data){
-                    console.log(data)
 	            	if(data.palyer.length == 2){
 	            		$medraw.hide();
 	            		$meguess.hide();
-	            		return;
 	            	}else{
                         $medraw.show();
                         $meguess.show();
@@ -196,8 +198,36 @@
 	            		$meguess.hide();
 	            	}else if(type == 'START'){
 	            		$list.append('<p class="blue">游戏开始了</p>');
+                        $.each(user, function(index,item){
+                            if(item.uid == uid){
+                                if(item.type == 'PLAYERDRAW'){
+                                    console.log(1)
+                                    addEven();
+                                }else if(item.type == 'PLAYGUESS'){
+                                    console.log(2)
+                                    removeEven();
+                                }
+                            }
+                        })
 	            	}
 	            });
+
+                //画图
+                socket.on('roomDraw', function(type, from, data, set){
+                    if(type == 'BEGIN'){
+                        if(from.uid != uid){
+                            context.lineWidth = set.size;
+                            context.strokeStyle = set.color;
+                            context.beginPath();
+                            context.moveTo(data.x, data.y);
+                        }
+                    }else if(type == 'MOVE'){
+                        context.lineTo(data.x, data.y);
+                        context.stroke();
+                    }else if(type == 'CLEAR'){
+                        clearCanvans();
+                    }
+                })
 
 	            //离开房间
 	            $('#leaveRoom').click(function(){
@@ -233,40 +263,68 @@
 	            	socket.emit('ready', roomid, 'PLAYGUESS');
 	            })
 
-	        //画图部分
-	        var canvas = document.getElementById('can');
-	        var context = canvas.getContext('2d');
-	        var isButtonDown = false;
-
-	        //鼠标按下
-	        function _mousedown(e){
-	        	isButtonDown = true;
-                context.beginPath();
-                context.moveTo( e.offsetX,e.offsetY );
-	        }
-
-	        //鼠标移动
-	        function _mousemove(e){
-	        	var pos = { x:e.offsetX, y:e.offsetY };
-                if(this.isButtonDown){
-					setTimeout(function(){
-						context.lineTo(pos.x, pos.y);
-                    	context.stroke();
-					},0);
+                //鼠标按下
+                function _mousedown(e){
+                    isButtonDown = true;
+                    var set = {
+                        size: $pensize.val(),
+                        color: $pencolor.val()
+                    };
+                    context.lineWidth = set.size;
+                    context.strokeStyle = set.color;
+                    var pos = {
+                        x: e.pageX - canvas.offsetLeft,
+                        y: e.pageY - canvas.offsetTop
+                    };
+                    context.beginPath();
+                    context.moveTo(pos.x, pos.y);
+                    //发送房间id 绘画类型 坐标 笔的设置
+                    socket.emit('canvansMsg', roomid, 'BEGIN', pos, set)
                 }
-	        }
+                //鼠标移动
+                function _mousemove(e){
+                    if(isButtonDown == true){
+                        var pos = {
+                            x: e.pageX - canvas.offsetLeft,
+                            y: e.pageY - canvas.offsetTop
+                        };
+                        //画
+                        context.lineTo(pos.x, pos.y);
+                        context.stroke();
+                        socket.emit('canvansMsg', roomid, 'MOVE', pos)
+                    }
+                }
+                //鼠标停止
+                function _mouseup(e){
+                    isButtonDown = false;
+                }
+                function _mouseout(e){
+                    isButtonDown = false;
+                }
 
-	        //鼠标停止
-	        function _mouseup(e){
-                this.isButtonDown = false;
-	        }
+                //清空画板
+                function clearCanvans(){
+                    context.clearRect(0, 0, 500, 500);
+                }
 
-           /* for(var k in options){
-                context[k] = options[k]
-            }
-            for(var i in events){
-                canvas.addEventListener(i,events[i]);
-            }*/
+                function addEven(){
+                    canvas.addEventListener('mousedown', _mousedown);
+                    canvas.addEventListener('mousemove', _mousemove);
+                    canvas.addEventListener('mouseup', _mouseup);
+                    canvas.addEventListener('mouseout', _mouseout);
+                }
+
+                function removeEven(){
+                    canvas.removeEventListener('mousedown', _mousedown);
+                    canvas.removeEventListener('mousemove', _mousemove);
+                    canvas.removeEventListener('mouseup', _mouseup);
+                    canvas.removeEventListener('mouseout', _mouseout);
+                }
+
+                $clear.click(function(){
+                    clearCanvans();
+                    socket.emit('canvansMsg', roomid, 'CLEAR')
+                })
 	    }
 	})
 	</script>
