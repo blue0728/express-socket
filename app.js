@@ -84,7 +84,6 @@ var cn = {
 	WAIT: '等待游戏', //等待中
 	START: '开始游戏' //已经开始
 }
-
 io.on('connection', function(socket) {
 	//登录
 	socket.on('login', function() {
@@ -144,7 +143,7 @@ io.on('connection', function(socket) {
 			var key;
 			for (key in roomInfo) {
 				//把离线用户从房间里删除
-				roomInfo[key] = roomInfo[key].users.filter((item) => {
+				roomInfo[key].users = roomInfo[key].users.filter((item) => {
 					if (item.uid == offlineUser[0].uid) {
 						socket.leave(key); //退出房间
 						sendRoomMsg(key, types.OUTROOM, offlineUser[0]); //给房间发送离线用户消息
@@ -281,18 +280,11 @@ function playReStart(roomId) {
 	var playerId;
 	if (roomInfo[roomId]) {
 		roomInfo[roomId].status = types.WAIT;
+		roomInfo[roomId].palyer = [];
 		roomInfo[roomId].users.forEach((item) => {
-			if (item.type != types.TOURIST) {
-				playerId = item.uid;
-				item.type == types.TOURIST; //房间里面的人重新变成游客状态
-			}
+			item.type = types.TOURIST; //房间里面的人重新变成游客状态
 		})
 	};
-	onlineUsers.forEach((item) => {
-		if (item.uid == playerId) {
-			item.type == types.TOURIST; //在线状态变更
-		}
-	})
 	sendRoomById(roomId); //发送当前房间信息
 }
 

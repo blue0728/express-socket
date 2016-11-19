@@ -8,7 +8,7 @@
   	div p ul li textarea input p{
   		margin: 0;
   		padding: 0;
-  		word-break:break-all; 
+  		word-break:break-all;
 　　	word-wrap:break-word
   	}
   	.room{
@@ -53,14 +53,14 @@
   		height: 380px;
   		line-height: 20px;
   		padding: 10px;
-  		overflow-y: auto; 
+  		overflow-y: auto;
   	}
   	#text{
   		height: 30px;
   		width: 100%;
   	}
   	.bar{
-  		padding: 20px 0; 
+  		padding: 20px 0;
   	}
   	</style>
   	<body>
@@ -73,14 +73,14 @@
 	<% if (user) { %>
 	当前登录用户：<%= user.name %>
 	<a href="/logout">退出</a>
-	
+
 	<div class="content">
 		<div class="draw">
 			<canvas id="can" width="500" height="500"></canvas>
 		</div>
 		<div class="msg">
 			<div id="list">
-				
+
 			</div>
 			<div class="send">
 				<p><textarea id="text" cols="30" rows="2"></textarea></p>
@@ -130,7 +130,7 @@
 	    if(username){
 	        var socket = io.connect();
 	        	//登陆
-	            socket.emit('login'); 
+	            socket.emit('login');
 
 	            //系统消息
 	            socket.on('systemMessage', function(type, data, msg){
@@ -148,21 +148,25 @@
 
 	            //即时在线的用户
 	            socket.on('onlineUsers', function(data){
-	            	//console.log('在线用户' + JSON.stringify(data))
+	            	console.log('在线用户' + JSON.stringify(data))
 	            });
 
 	            //当前在线房间数量
 	            socket.on('roomInfo', function(data){
-	            	//console.log('房间数' + JSON.stringify(data))
+	            	console.log('房间数' + JSON.stringify(data))
 	            });
 
 	            //当前房间的信息
 	            socket.on('roomById', function(data){
+                    console.log(data)
 	            	if(data.palyer.length == 2){
 	            		$medraw.hide();
 	            		$meguess.hide();
 	            		return;
-	            	}
+	            	}else{
+                        $medraw.show();
+                        $meguess.show();
+                    }
 	            	data.palyer.forEach((item) => {
 	            		if(item.type == 'PLAYGUESS'){
 	            			$meguess.hide();
@@ -199,7 +203,7 @@
 	            $('#leaveRoom').click(function(){
 	                socket.emit('leaveRoom', $(this).data('id'))
 	            });
-	           
+
 	            //发送文本消息
 	            function send(){
 	            	var val = $text.val();
@@ -231,7 +235,7 @@
 
 	        //画图部分
 	        var canvas = document.getElementById('can');
-	        var context = canvas.getContext('2d');    
+	        var context = canvas.getContext('2d');
 	        var isButtonDown = false;
 
 	        //鼠标按下
@@ -254,7 +258,7 @@
 
 	        //鼠标停止
 	        function _mouseup(e){
-                this.isButtonDown = false; 
+                this.isButtonDown = false;
 	        }
 
            /* for(var k in options){
@@ -262,7 +266,7 @@
             }
             for(var i in events){
                 canvas.addEventListener(i,events[i]);
-            }*/    
+            }*/
 	    }
 	})
 	</script>
