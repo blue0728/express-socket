@@ -73,7 +73,11 @@ var types = {
 	PLAYERDRAW: 'PLAYERDRAW', //画
 	PLAYGUESS: 'PLAYGUESS', //猜
 	WAIT: 'WAIT', //等待中
-	START: 'START' //已经开始
+	START: 'START', //已经开始
+	GUESSING: 'GUESSING', //正在猜
+	SUCCRSS: 'SUCCRSS', //猜对了
+	FAIL: 'FAIL', //猜错了
+
 };
 
 var cn = {
@@ -265,8 +269,56 @@ io.on('connection', function(socket) {
 		})
 		sendOnlineUsers();
 		sendRoomInfo();
-	})
+	});
 
+	//换题目
+	socket.on('changeQuestion', function(roomId) {
+		var user = socket.handshake.session.userdata;
+		if (roomInfo[roomId]) {
+			roomInfo[roomId].palyer.forEach((item) => {
+				if (item.uid == user.uid) {
+					if (item.type == types.PLAYERDRAW) {
+						delete plays[roomId] //结束这局游戏
+						if (!plays[roomId]) { //重新创建游戏内容
+							plays[roomId] = {
+								roomid: roomId,
+								question: getRandomWord(),
+								answers: []
+							};
+							playStart(item.socketid, plays[roomId]);
+						}
+					}
+
+				}
+			})
+		}
+
+	});
+
+	//猜答案
+	socket.on('guess', function(roomId, val) {
+		var user = socket.handshake.session.userdata;
+		if (roomInfo[roomId]) {
+			roomInfo[roomId].palyer.forEach((item) => {
+				if (item.uid == user.uid) {
+					if (item.type == types.PLAYGUESS) {
+						if (plays[roomId]) { //重新创建游戏内容
+							sendRoomMsg(roomId, 'GUESSING', user, val); //给房间用户发送消息
+							plays[roomId].answers.push(val);
+							if (plays[roomId].question == val) {
+								sendRoomMsg(roomId, 'SUCCRSS', user, val); //给房间用户发送消息
+								playReStart(roomId); //游戏重新开始
+								delete plays[roomId] //结束这局游戏
+							} else {
+								sendRoomMsg(roomId, 'FAIL', user, val); //给房间用户发送消息
+							}
+						}
+					}
+
+				}
+			})
+		}
+	})
 });
 
 
@@ -319,7 +371,7 @@ function playReStart(roomId) {
 	sendRoomById(roomId); //发送当前房间信息
 }
 
-//游戏开始 发给画的人
+//游戏开始 发给画的人题目
 function playStart(id, data) {
 	userSocket[id].emit('play', id, data);
 }

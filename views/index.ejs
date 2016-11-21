@@ -23,7 +23,7 @@
 	<a href="/logout">退出</a>
 	<a href="/room/<%= user.uid%>">进入游戏房间</a>
 	<% } else {%>
-	<form action="/login" method="post">
+	<form action="<%= method%>" method="post">
 	    <input type="text" id="user" name="user">
 	    <input type="submit" value="登录">
 	</form>

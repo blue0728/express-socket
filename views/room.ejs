@@ -107,7 +107,11 @@
 				<option value="green">绿色</option>
 			</select></label>
             <input type="button" id="clear" value="重画">
+            <input type="button" id="change" value="换题">
+            <input type="text" id="question">
+            <input type="button" id="guess" value="猜">
 		</div>
+        <div id="timushi"></div>
 	</div>
 	<% } %>
 
@@ -125,6 +129,10 @@
     var $clear = $('#clear');
     var $pensize = $('#pensize');
     var $pencolor = $('#pencolor');
+    var $change = $('#change');
+    var $guess = $('#guess');
+    var $question = $('#question');
+    var $timushi = $('#timushi');
     //画图部分
     var canvas = document.getElementById('can');
     var context = canvas.getContext('2d');
@@ -169,24 +177,37 @@
                         $medraw.show();
                         $meguess.show();
                     }
-	            	data.palyer.forEach((item) => {
-	            		if(item.type == 'PLAYGUESS'){
-	            			$meguess.hide();
-	            		}else if(item.type == 'PLAYERDRAW'){
-	            			$medraw.hide();
-	            		}
-	            	})
+                    $.each(data.palyer, function(index, item){
+                        if(item.type == 'PLAYGUESS'){
+                            $meguess.hide();
+                        }else if(item.type == 'PLAYERDRAW'){
+                            $medraw.hide();
+                        }
+                    })
+	 
 	            })
 
 	            //房间消息
 	            socket.on('roomMsg', function(roomId, type, data, msg){
+                    console.log(type)
+
+                    console.log(data)
 	                if(type == 'INROOM'){
 	                	$list.append('<p class="blue">' + data.name + '进房间了' + '</p>');
 	                }else if(type == 'OUTROOM'){
 	                	$list.append('<p class="red">' + data.name + '离开房间了' + '</p>');
 	                }else if(type == 'TEXTMSG'){
 	                	$list.append('<p class="green">' + data.name + '说：' + msg + '</p>');
-	                }
+	                }else if(type == 'GUESSING'){
+                        $list.append('<p class="green">' + data.name + '猜：' + msg + '</p>');
+                    }else if(type == 'SUCCRSS'){
+                        $list.append('<p class="green">' + data.name + '猜：' + msg + '，猜对啦</p>');
+                        removeEven();
+                        clearCanvans();
+                        $timushi.html('');
+                    }else if(type == 'FAIL'){
+                        $list.append('<p class="green">' + data.name + '猜：' + msg + '，猜错啦</p>');
+                    }
 	            });
 
 	            //游戏准备状态
@@ -212,7 +233,7 @@
 
                 //游戏信息
                 socket.on('play', function(roomId, play){
-                    console.log(play)
+                    $timushi.html('题目是<i class="red">' + play.question + '</i>');
                 })
 
                 //画图
@@ -326,11 +347,26 @@
 
                 $clear.click(function(){
                     clearCanvans();
-                    socket.emit('canvansMsg', roomid, 'CLEAR')
+                    socket.emit('canvansMsg', roomid, 'CLEAR');
+                })
+
+                $change.click(function(){
+                    clearCanvans();
+                    socket.emit('changeQuestion', roomid);
+                    socket.emit('canvansMsg', roomid, 'CLEAR');
+                })
+
+                $guess.click(function(){
+                    var val = $question.val();
+                    socket.emit('guess', roomid, val);
                 })
 	    }
 	})
 	</script>
-	<% } %>
+	<% } else {%>
+    <script>
+    location.href = '/?callback=' + location.href;    
+    </script>
+    <% } %>
   </body>
 </html>

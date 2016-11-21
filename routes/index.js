@@ -6,7 +6,8 @@ var uuid = require('node-uuid');
 router.get('/', function(req, res, next) {
 	res.render('index', {
 		title: 'Express',
-		user: req.session.userdata
+		user: req.session.userdata,
+		method: req.query.callback ? '/login?callback=' + req.query.callback : '/login'
 	});
 });
 
