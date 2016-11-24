@@ -1,32 +1,40 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
-  	</head>
-  	<style>
-  	.room{
-	  	width: 200px;
-	  	border: 1px solid #ddd;
-	  	padding: 20px;
-  	}
-  	</style>
-  	<body>
-	<script src="/socket.io/socket.io.js"></script>
-	<script src="/javascripts/jquery-1.10.2.min.js"></script>
+<%- include public/header %>
+<% if(user){%>
+<script>
+location.href = '/room/<%= user.uid%>';	
+</script>
+<%} else {%>
+<div class="login-box">
+	<img class="workes" src="images/works/2.png">
+	<div class="f24 title c_red">你画我猜</div>
+	<input type="text" name="user" class="f18 name" placeholder="请输入昵称">
+	<input type="button" class="f18 c_fff btn" value="进入游戏">
+</div>
+<script>
+$(function(){
+	var $name = $('input.name');
+	var $btn = $('input.btn');
 
-	<h1><%= title %></h1>
-	<p>Welcome to <%= title %></p>
+	$btn.click(function(){
+		var val = $name.val();
+		if(val == ''){
+			alert('请填写昵称！')
+		}
 
-	<% if (user) { %>
-	当前登录用户：<%= user.name %>
-	<a href="/logout">退出</a>
-	<a href="/room/<%= user.uid%>">进入游戏房间</a>
-	<% } else {%>
-	<form action="<%= method%>" method="post">
-	    <input type="text" id="user" name="user">
-	    <input type="submit" value="登录">
-	</form>
-	<% } %>
-  </body>
-</html>
+		$.ajax({
+			url: '/login',
+			method: 'post',
+			data: {
+				user: val
+			},
+			success: function(data){
+				if(data.status == 'success'){
+					location.href = '/room/' + data.data.uid;
+				}
+			}
+		})
+	})
+});	
+</script>
+<%}%>
+<%- include public/footer %>

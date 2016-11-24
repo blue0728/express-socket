@@ -5,7 +5,7 @@ var uuid = require('node-uuid');
 /* GET home page. */
 router.get('/', function(req, res, next) {
 	res.render('index', {
-		title: 'Express',
+		title: '你画我猜',
 		user: req.session.userdata,
 		method: req.query.callback ? '/login?callback=' + req.query.callback : '/login'
 	});
@@ -24,8 +24,14 @@ router.post('/login', function(req, res, next) {
 		name: req.body.user,
 		uid: uuid.v1()
 	};
-	var url = req.query.callback ? req.query.callback : '/'
-	res.redirect(url);
+	return res.json({
+		status: 'success',
+		msg: '登录成功',
+		data: {
+			name: req.body.user,
+			uid: uuid.v1()
+		}
+	});
 });
 
 router.get('/logout', function(req, res, next) {

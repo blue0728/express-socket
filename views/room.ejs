@@ -1,129 +1,104 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
-  	</head>
-  	<style>
-  	div p ul li textarea input p{
-  		margin: 0;
-  		padding: 0;
-  		word-break:break-all;
-　　	word-wrap:break-word
-  	}
-  	.room{
-	  	width: 200px;
-	  	border: 1px solid #ddd;
-	  	padding: 20px;
-  	}
-  	.content{
-  		overflow: hidden;
-  		width: 1000px;
-  		margin-top: 20px;
-  	}
-	.draw{
-		width: 500px;
-		height: 500px;
-		border:1px solid #ddd;
-		float: left;
-	}
-  	.msg{
-  		float: left;
-  		width: 300px;
-  		height: 500px;
-  		border:1px solid #ddd;
-  	}
-  	.send{
-  		border-top: 1px solid #ddd;
-  		padding: 5px 20px;
-  	}
-  	.blcak{
-  		color: black;
-  	}
-  	.blue{
-  		color:blue;
-  	}
-  	.red{
-  		color: red;
-  	}
-  	.green{
-  		color: green;
-  	}
-  	#list{
-  		height: 380px;
-  		line-height: 20px;
-  		padding: 10px;
-  		overflow-y: auto;
-  	}
-  	#text{
-  		height: 30px;
-  		width: 100%;
-  	}
-  	.bar{
-  		padding: 20px 0;
-  	}
-  	</style>
-  	<body>
-	<script src="/socket.io/socket.io.js"></script>
-	<script src="/javascripts/jquery-1.10.2.min.js"></script>
+<%- include public/header %>
+<% if (user) { %>
+<style>
+body{
+    background: #ebebeb;
+}
+</style>
+<div class="room-box">
+    <div class="canvas"><canvas id="canvas"></canvas></div>
+    <div class="tool">
+        <label class="f14">笔号：</label>
+        <select class="pan-size">
+            <option value="1">1号</option>
+            <option value="5">5号</option>
+            <option value="10">10号</option>
+            <option value="15">15号</option>
+            <option value="20">20号</option>
+            <option value="25">25号</option>
+        </select>
+        <label class="f14">颜色：</label>
+        <span class="pan-color color1 active"></span>
+        <span class="pan-color color2"></span>
+        <span class="pan-color color3"></span>
+        <span class="pan-color color4"></span>
+        <span class="pan-color color5"></span>
+        <span class="pan-color color6"></span>
+    </div>
+    <div class="question cle">
+        <span class="f14">题目：<i class="c_red f14">水壶</i></span>
+        <input class="f14 fr" type="button" value="重画">
+        <input class="f14 fr" type="button" value="换题">
+    </div>
+    <div class="room-mg">
+        <div class="tips f14">房间在线人数（10）</div>
+        <div class="list">
+            <ul id="list">
+            </ul>
+        </div>
+    </div>
+    <div class="send cle">
+        <input type="text" class="text f14 fl" placeholder="聊天或发送答案">
+        <input type="text" class="submit f14 fl" value="确定">
+        <input type="text" class="answer f14 fr c_red" value="答题"> 
+    </div>
+</div>
+<script>
+$(function(){
+    var username = '<%= user.name %>';
+    var uid = '<%= user.uid%>';
+    var roomid = '<%= roomid%>';
+    var $list = $('#list');
+    var oCanvas = document.getElementById('can');
+    var context = canvas.getContext('2d');
+    var isButtonDown = false;
 
-	<h1><%= title %></h1>
-	<p>Welcome to <%= title %></p>
+    if(username){
+        var socket = io.connect();
+        socket.emit('login');
 
-	<% if (user) { %>
-	当前登录用户：<%= user.name %>
-	<a href="/logout">退出</a>
+         //房间消息
+        socket.on('roomMsg', function(roomId, type, data, msg){
+            console.log(type)
 
-	<div class="content">
-		<div class="draw">
-			<canvas id="can" width="500" height="500"></canvas>
-		</div>
-		<div class="msg">
-			<div id="list">
+            console.log(data)
+            if(type == 'INROOM'){
+                $list.append('<li class="c_666 f14">系统消息：<span class="c_red">'+ data.name +'</span>进入了房间</li>');
+            }else if(type == 'OUTROOM'){
+                $list.append('<li class="c_666 f14">系统消息：<span class="c_red">'+ data.name +'</span>离开了房间</li>');
+            }else if(type == 'TEXTMSG'){
+                $list.append('<li class="c_666 f14">' + data.name + '：<span class="c_red">'+ msg + '</li>');
+            }else if(type == 'GUESSING'){
+                $list.append('<li class="c_666 f14">' + data.name + '的答案：<span class="c_red">'+ msg + '</li>');
+            }else if(type == 'SUCCRSS'){
+                $list.append('<li class="c_666 f14">' + data.name + '的答案：<span class="c_red">'+ msg + '，猜对了</li>');
+                removeEven();
+                clearCanvans();
+                //$timushi.html('');
+            }else if(type == 'FAIL'){
+                $list.append('<li class="c_666 f14">' + data.name + '的答案：<span class="c_red">'+ msg + '，猜错啦</li>');
+                //$list.append('<p class="green">' + data.name + '猜：' + msg + '，猜错啦</p>');
+            }
+        });
+    }
 
-			</div>
-			<div class="send">
-				<p><textarea id="text" cols="30" rows="2"></textarea></p>
-				<p><input type="button" id="submit" value="发送消息"></p>
-			</div>
-		</div>
-	</div>
-	<div class="bar">
-		<input type="button" value="我来画" id="medraw">
-		<input type="button" value="我来猜" id="meguess">
-		<div id="tool">
-			<label for="">画笔粗细
-			<select id="pensize">
-				<option value="1">1号</option>
-				<option value="5">5号</option>
-				<option value="10">10号</option>
-				<option value="15">15号</option>
-				<option value="20">20号</option>
-			</select></label>
-			<label>画笔颜色<select id="pencolor">
-                <option value="black">黑色</option>
-				<option value="blue">蓝色</option>
-				<option value="red">红色</option>
-				<option value="green">绿色</option>
-			</select></label>
-            <input type="button" id="clear" value="重画">
-            <input type="button" id="change" value="换题">
-            <input type="text" id="question">
-            <input type="button" id="guess" value="猜">
-		</div>
-        <div id="timushi"></div>
-	</div>
-	<% } %>
+})    
+</script>
+<%}%>
+<%- include public/footer %>
 
-	<% if (user) { %>
-	<script>
-	var username = '<%= user.name %>';
-	var uid = '<%= user.uid%>';
-	var roomid = '<%= roomid%>';
-	var $list = $('#list');
-	var $medraw = $('#medraw');
-	var $meguess = $('#meguess');
-	var $tool = $('#tool');
+
+<!-- 
+
+  <% if (user) { %>
+  <script>
+  var username = '<%= user.name %>';
+  var uid = '<%= user.uid%>';
+  var roomid = '<%= roomid%>';
+  var $list = $('#list');
+  var $medraw = $('#medraw');
+  var $meguess = $('#meguess');
+  var $tool = $('#tool');
     var $submit = $('#submit');
     var $text = $('#text');
     var $clear = $('#clear');
@@ -138,42 +113,42 @@
     var context = canvas.getContext('2d');
     var isButtonDown = false;
 
-	$(function(){
-	    if(username){
-	        var socket = io.connect();
-	        	//登陆
-	            socket.emit('login');
+  $(function(){
+      if(username){
+          var socket = io.connect();
+            //登陆
+              socket.emit('login');
 
-	            //系统消息
-	            socket.on('systemMessage', function(type, data, msg){
-	            	if(type == 'ONLINE'){
-	            		$list.append('<p class="blue">' + data.name + '上线了' + '</p>')
-	            	}else if(type == 'OFFLINE'){
-	            		$list.append('<p class="red">' + data.name + '离线了' + '</p>')
-	            	}
-	            });
+              //系统消息
+              socket.on('systemMessage', function(type, data, msg){
+                if(type == 'ONLINE'){
+                  $list.append('<p class="blue">' + data.name + '上线了' + '</p>')
+                }else if(type == 'OFFLINE'){
+                  $list.append('<p class="red">' + data.name + '离线了' + '</p>')
+                }
+              });
 
-	            //私密我的通知
-	            socket.on('notice', function(msg){
-	            	$list.append('<p class="red">' + msg + '</p>')
-	            })
+              //私密我的通知
+              socket.on('notice', function(msg){
+                $list.append('<p class="red">' + msg + '</p>')
+              })
 
-	            //即时在线的用户
-	            socket.on('onlineUsers', function(data){
-	            	//console.log('在线用户' + JSON.stringify(data))
-	            });
+              //即时在线的用户
+              socket.on('onlineUsers', function(data){
+                //console.log('在线用户' + JSON.stringify(data))
+              });
 
-	            //当前在线房间数量
-	            socket.on('roomInfo', function(data){
-	            	//console.log('房间数' + JSON.stringify(data))
-	            });
+              //当前在线房间数量
+              socket.on('roomInfo', function(data){
+                //console.log('房间数' + JSON.stringify(data))
+              });
 
-	            //当前房间的信息
-	            socket.on('roomById', function(data){
-	            	if(data.palyer.length == 2){
-	            		$medraw.hide();
-	            		$meguess.hide();
-	            	}else{
+              //当前房间的信息
+              socket.on('roomById', function(data){
+                if(data.palyer.length == 2){
+                  $medraw.hide();
+                  $meguess.hide();
+                }else{
                         $medraw.show();
                         $meguess.show();
                     }
@@ -184,21 +159,21 @@
                             $medraw.hide();
                         }
                     })
-	 
-	            })
+   
+              })
 
-	            //房间消息
-	            socket.on('roomMsg', function(roomId, type, data, msg){
+              //房间消息
+              socket.on('roomMsg', function(roomId, type, data, msg){
                     console.log(type)
 
                     console.log(data)
-	                if(type == 'INROOM'){
-	                	$list.append('<p class="blue">' + data.name + '进房间了' + '</p>');
-	                }else if(type == 'OUTROOM'){
-	                	$list.append('<p class="red">' + data.name + '离开房间了' + '</p>');
-	                }else if(type == 'TEXTMSG'){
-	                	$list.append('<p class="green">' + data.name + '说：' + msg + '</p>');
-	                }else if(type == 'GUESSING'){
+                  if(type == 'INROOM'){
+                    $list.append('<p class="blue">' + data.name + '进房间了' + '</p>');
+                  }else if(type == 'OUTROOM'){
+                    $list.append('<p class="red">' + data.name + '离开房间了' + '</p>');
+                  }else if(type == 'TEXTMSG'){
+                    $list.append('<p class="green">' + data.name + '说：' + msg + '</p>');
+                  }else if(type == 'GUESSING'){
                         $list.append('<p class="green">' + data.name + '猜：' + msg + '</p>');
                     }else if(type == 'SUCCRSS'){
                         $list.append('<p class="green">' + data.name + '猜：' + msg + '，猜对啦</p>');
@@ -208,17 +183,17 @@
                     }else if(type == 'FAIL'){
                         $list.append('<p class="green">' + data.name + '猜：' + msg + '，猜错啦</p>');
                     }
-	            });
+              });
 
-	            //游戏准备状态
-	            socket.on('playStatus', function(roomId, type, user){
-	            	if(type == 'PLAYERDRAW'){
-	            		$list.append('<p class="blue">' + user.name + '选择了画' + '</p>');
-	            	}else if(type == 'PLAYGUESS'){
-	            		$list.append('<p class="blue">' + user.name + '选择了猜' + '</p>');
-	            		$meguess.hide();
-	            	}else if(type == 'START'){
-	            		$list.append('<p class="blue">游戏开始了</p>');
+              //游戏准备状态
+              socket.on('playStatus', function(roomId, type, user){
+                if(type == 'PLAYERDRAW'){
+                  $list.append('<p class="blue">' + user.name + '选择了画' + '</p>');
+                }else if(type == 'PLAYGUESS'){
+                  $list.append('<p class="blue">' + user.name + '选择了猜' + '</p>');
+                  $meguess.hide();
+                }else if(type == 'START'){
+                  $list.append('<p class="blue">游戏开始了</p>');
                         $.each(user, function(index,item){
                             if(item.uid == uid){
                                 if(item.type == 'PLAYERDRAW'){
@@ -228,8 +203,8 @@
                                 }
                             }
                         })
-	            	}
-	            });
+                }
+              });
 
                 //游戏信息
                 socket.on('play', function(roomId, play){
@@ -253,39 +228,39 @@
                     }
                 })
 
-	            //离开房间
-	            $('#leaveRoom').click(function(){
-	                socket.emit('leaveRoom', $(this).data('id'))
-	            });
+              //离开房间
+              $('#leaveRoom').click(function(){
+                  socket.emit('leaveRoom', $(this).data('id'))
+              });
 
-	            //发送文本消息
-	            function send(){
-	            	var val = $text.val();
-	            	if(val == ''){
-	            		console.log('请输入消息')
-	            		return;
-	            	}
-	            	socket.send(roomid, 'TEXTMSG', val)
-	            	$text.val('').focus();
-	            };
-	            $text.keydown(function(e){
-	            	if(e.keyCode == 13){
-	            		e.preventDefault();
-	            		send();
-	            	}
-	            })
-	            $submit.click(function(){
-	            	send();
-	            });
+              //发送文本消息
+              function send(){
+                var val = $text.val();
+                if(val == ''){
+                  console.log('请输入消息')
+                  return;
+                }
+                socket.send(roomid, 'TEXTMSG', val)
+                $text.val('').focus();
+              };
+              $text.keydown(function(e){
+                if(e.keyCode == 13){
+                  e.preventDefault();
+                  send();
+                }
+              })
+              $submit.click(function(){
+                send();
+              });
 
-	            //我来画
-	            $medraw.click(function(){
-	            	socket.emit('ready', roomid, 'PLAYERDRAW');
-	            })
-	            //我来猜
-	            $meguess.click(function(){
-	            	socket.emit('ready', roomid, 'PLAYGUESS');
-	            })
+              //我来画
+              $medraw.click(function(){
+                socket.emit('ready', roomid, 'PLAYERDRAW');
+              })
+              //我来猜
+              $meguess.click(function(){
+                socket.emit('ready', roomid, 'PLAYGUESS');
+              })
 
                 //鼠标按下
                 function _mousedown(e){
@@ -360,13 +335,14 @@
                     var val = $question.val();
                     socket.emit('guess', roomid, val);
                 })
-	    }
-	})
-	</script>
-	<% } else {%>
+      }
+  })
+  </script>
+  <% } else {%>
     <script>
     location.href = '/?callback=' + location.href;    
     </script>
     <% } %>
   </body>
 </html>
+ -->
